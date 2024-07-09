@@ -36,6 +36,7 @@ VOLUME /pythonapps
 # Copy the executable from the "build" stage.
 WORKDIR /app
 COPY . .
+RUN ["chmod", "+x", "/app/run.sh"]
 
 # Create base venv and install requirements
 RUN python -m venv .venv && .venv/bin/python -m pip install -r requirements.txt

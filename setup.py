@@ -37,6 +37,9 @@ for pathname in os.listdir(base_directory):
             logger.debug('Installing requirements (if specified)...')
             if (os.path.exists(os.path.join(fullpath, 'requirements.txt'))):
                 subprocess.call(args=[venv_python_path, '-m', 'pip', 'install', '-r', 'requirements.txt'], cwd=fullpath, start_new_session=True)
+            #mark script as executable
+            logger.debug('Marking script as executable to ensure it runs...')
+            subprocess.call(args=['chmod', '+x', data['script']], cwd=fullpath)
             #create crontab entry
             logger.debug('Adding crontab entry...')
             cron_entry = cron.new(f'cd {fullpath} && {venv_python_path} {data['script']} > "{os.path.join(fullpath, '.apprunner.log')}" 2>&1')

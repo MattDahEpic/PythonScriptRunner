@@ -13,6 +13,7 @@ logger.setLevel(logging.DEBUG)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 cron = CronTab(user=True)
+cron.remove_all() # clear existing crontab since it may have persisted
 
 base_directory = '/pythonapps'
 data_file_name = '.apprunnerdata.json'

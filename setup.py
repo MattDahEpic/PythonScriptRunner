@@ -17,14 +17,16 @@ def venv_python_path() -> str:
 
 def run(app: LoadedApp):
     env = dotenv_values(os.path.join(app.fullPath, '.env'))
-    output_file = open(os.path.join(app.fullPath, '.apprunner.log'), 'w')
     app_call = subprocess.run(args=[venv_python_path(), '-u', app.entrypoint], # disable output buffering https://stackoverflow.com/a/75546680
                           cwd=app.fullPath,
                           env=env,
-                          stdout=output_file,
-                          stderr=output_file,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
+                          text=True,
                           shell=True)
-    output_file.flush()
+    output_file = open(os.path.join(app.fullPath, '.apprunner.log'), 'w')
+    logger.debug(app_call.stdout)
+    output_file.write(app_call.stdout)
     output_file.close()
     if (app_call.returncode != 0):
         logger.warning(f'App {app.directoryName} exited with error code {app_call.returncode}')

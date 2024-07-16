@@ -18,7 +18,6 @@ def venv_python_path() -> str:
 def run(app: LoadedApp):
     env = dotenv_values(os.path.join(app.fullPath, '.env'))
     command = f'{venv_python_path()} {app.entrypoint}'
-    logger.debug(command)
     app_call = subprocess.run(args=command,
                           cwd=app.fullPath,
                           env=env,
@@ -27,11 +26,12 @@ def run(app: LoadedApp):
                           text=True,
                           shell=True)
     output_file = open(os.path.join(app.fullPath, '.apprunner.log'), 'w')
-    logger.debug(app_call.stdout)
     output_file.write(app_call.stdout)
     output_file.close()
     if (app_call.returncode != 0):
         logger.warning(f'App {app.directoryName} exited with error code {app_call.returncode}')
+        logger.debug(command)
+        logger.debug(app_call.stdout)
 
 logger = logging.getLogger('AppRunner')
 logger.setLevel(logging.DEBUG)

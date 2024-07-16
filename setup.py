@@ -17,7 +17,9 @@ def venv_python_path() -> str:
 
 def run(app: LoadedApp):
     env = dotenv_values(os.path.join(app.fullPath, '.env'))
-    app_call = subprocess.run(args=[venv_python_path(), '-u', app.entrypoint], # disable output buffering https://stackoverflow.com/a/75546680
+    command = f'{venv_python_path()} {app.entrypoint}'
+    logger.debug(command)
+    app_call = subprocess.run(args=command,
                           cwd=app.fullPath,
                           env=env,
                           stdout=subprocess.PIPE,

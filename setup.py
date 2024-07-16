@@ -7,6 +7,7 @@ import json
 import time
 import threading
 import pycron
+from datetime import datetime
 from dotenv import dotenv_values
 
 from models.loadedapp import *
@@ -103,6 +104,7 @@ for app in loadedApps:
     logger.info(f'* {app.directoryName} with schedule {app.schedule}')
 
 # Run the apps
+time.sleep(60 - datetime.now().second) #align to the minute
 while 1:
     for app in loadedApps:
         if (pycron.is_now(app.schedule)):

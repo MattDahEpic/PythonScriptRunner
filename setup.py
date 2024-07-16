@@ -4,6 +4,7 @@ import subprocess
 import traceback
 import logging
 import json
+import time
 from crontab import CronTab
 
 from models.apprunnerdata import *
@@ -15,7 +16,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 cron = CronTab(user=True)
 cron.remove_all() # clear existing crontab since it may have persisted
 
-base_directory = '/pythonapps'
+base_directory = os.environ.get('APP_DIRECTORY') if os.environ.get('APP_DIRECTORY') else '.testing-directory'
 data_file_name = '.apprunnerdata.json'
 
 for pathname in os.listdir(base_directory):
@@ -59,3 +60,8 @@ logger.info('Loaded successfully!')
 logger.debug('Started cron with following entries:')
 for job in cron:
     logger.debug(job) 
+
+
+while 1:
+
+    time.sleep(1)

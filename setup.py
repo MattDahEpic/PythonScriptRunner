@@ -36,6 +36,9 @@ data_file_name = '.apprunnerdata.json'
 
 loadedApps: "list[LoadedApp]" = []
 
+if (os.name != 'nt' and not os.access(base_directory, os.W_OK | os.X_OK)):
+    logger.warning(f'App directory is not writable!')
+
 # Load data
 for pathname in os.listdir(base_directory):
     fullpath = os.path.join(os.path.abspath(base_directory), pathname)
@@ -66,6 +69,11 @@ for pathname in os.listdir(base_directory):
 for app in loadedApps:
     try:
         logger.info(f'Preparing app {app.directoryName}')
+
+        #Check for writability
+        if (os.name != 'nt' and not os.access(app.directoryName, os.W_OK | os.X_OK)):
+            logger.warning(f'App path {app.directoryName} is not writable!')
+
         #create and activate venv
         logger.debug('Creating venv...')
         subprocess.call(args=['python', '-m', 'venv', '.apprunnervenv'], cwd=app.fullPath)
@@ -73,6 +81,10 @@ for app in loadedApps:
         if (os.name != 'nt'):
             logger.debug('Marking script as executable to ensure it runs...')
             subprocess.call(args=['chmod', '+x', app.entrypoint], cwd=app.fullPath)
+            if (not os.access(os.path.join(app.fullPath, app.entrypoint), os.X_OK)):
+                logger.error(f'App excutable for app {app.directoryName} is not executable! Skipping app setup, app will not run')
+                loadedApps.remove(app)
+                continue
         #install requirements if needed
         if (app.hasRequirements):
             logger.debug('Installing requirements...')

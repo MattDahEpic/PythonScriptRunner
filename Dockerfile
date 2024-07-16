@@ -12,6 +12,8 @@
 FROM python:3.12-bookworm
 
 ENV TZ="Etc/UTC"
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_NO_CACHE_DIR=1
 
 # Create a non-privileged user that the app will run under.
 ARG UID=10001

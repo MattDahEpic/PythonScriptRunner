@@ -13,29 +13,24 @@ FROM python:3.12-bookworm
 
 ENV TZ="Etc/UTC"
 
-# Install cron
-RUN apt-get update && \
-    apt-get -y install cron && \
-    update-rc.d cron enable
-
 # Create a non-privileged user that the app will run under.
-# ARG UID=10001
-# RUN adduser \
-#     --disabled-password \
-#     --gecos "" \
-#     --home "/nonexistent" \
-#     --shell "/sbin/nologin" \
-#     --no-create-home \
-#     --uid "${UID}" \
-#     appuser
-# USER appuser
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    appuser
+USER appuser
 
 # Where to link the client apps into
 VOLUME /pythonapps
 
 # Copy the executable from the "build" stage.
 WORKDIR /app
-COPY . .
+COPY --chown=appuser . .
 RUN ["chmod", "+x", "/app/run.sh"]
 
 # Create base venv and install requirements

@@ -5,20 +5,38 @@ import traceback
 import logging
 import json
 import time
-from crontab import CronTab
+import threading
+import pycron
+from dotenv import dotenv_values
 
-from models.apprunnerdata import *
+from models.loadedapp import *
+
+def venv_python_path() -> str: 
+    return os.path.join('.apprunnervenv', 'Scripts' if os.name == 'nt' else 'bin', 'python')
+
+def run(app: LoadedApp):
+    env = dotenv_values(os.path.join(app.fullPath, '.env'))
+    output_file = open(os.path.join(app.fullPath, '.apprunner.log'), 'w')
+    app_call = subprocess.run(args=[venv_python_path(), app.entrypoint],
+                          cwd=app.fullPath,
+                          env=env,
+                          stdout=output_file,
+                          stderr=output_file,
+                          shell=True)
+    output_file.close()
+    if (app_call.returncode != 0):
+        logger.warning(f'App {app.directoryName} exited with error code {app_call.returncode}')
 
 logger = logging.getLogger('AppRunner')
 logger.setLevel(logging.DEBUG)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-cron = CronTab(user=True)
-cron.remove_all() # clear existing crontab since it may have persisted
-
 base_directory = os.environ.get('APP_DIRECTORY') if os.environ.get('APP_DIRECTORY') else '.testing-directory'
 data_file_name = '.apprunnerdata.json'
 
+loadedApps: "list[LoadedApp]" = []
+
+# Load data
 for pathname in os.listdir(base_directory):
     fullpath = os.path.join(os.path.abspath(base_directory), pathname)
     if os.path.isdir(fullpath):
@@ -28,40 +46,54 @@ for pathname in os.listdir(base_directory):
             continue
         logger.info(f'Found canidate app path {pathname}')
         try:
-            #load runner data
-            data: AppRunnerData = json.load(open(app_datafile))
-            logger.debug(f'Lodaded app data: {data}')
-            #create and activate venv
-            logger.debug('Creating venv...')
-            subprocess.call(args=['python', '-m', 'venv', '.apprunnervenv'], cwd=fullpath)
-            venv_python_path = os.path.join('.apprunnervenv', 'bin/python')
-            #install requirements if needed
-            logger.debug('Installing requirements (if specified)...')
-            if (os.path.exists(os.path.join(fullpath, 'requirements.txt'))):
-                subprocess.call(args=[venv_python_path, '-m', 'pip', 'install', '-r', 'requirements.txt'], cwd=fullpath, start_new_session=True)
-            #mark script as executable
-            logger.debug('Marking script as executable to ensure it runs...')
-            subprocess.call(args=['chmod', '+x', data['script']], cwd=fullpath)
-            #create crontab entry
-            logger.debug('Adding crontab entry...')
-            cron_entry = cron.new(f'cd {fullpath} && {venv_python_path} {data['script']} > "{os.path.join(fullpath, '.apprunner.log')}" 2>&1')
-            cron_entry.setall(data['schedule'])
+            app = LoadedApp()
+            app.directoryName = pathname
+            app.fullPath = fullpath
+            data = json.load(open(app_datafile))
+            app.schedule = data['schedule']
+            app.entrypoint = data['script']
+            app.hasRequirements = os.path.exists(os.path.join(fullpath, 'requirements.txt'))
+            app.hasEnv = os.path.exists(os.path.join(fullpath, '.env'))
+            loadedApps.append(app)
 
-            logger.info(f'Finished setup for app path {pathname}')
+            logger.debug(f'Lodaded app data')
         except Exception as e:
             logger.error(f'Failed to load app data in path {pathname}')
             traceback.print_exc()
             exit(1)
 
-cron.write(user=cron.user)
+# Do setup
+for app in loadedApps:
+    try:
+        logger.info(f'Preparing app {app.directoryName}')
+        #create and activate venv
+        logger.debug('Creating venv...')
+        subprocess.call(args=['python', '-m', 'venv', '.apprunnervenv'], cwd=app.fullPath)
+        #mark script as executable
+        if (os.name != 'nt'):
+            logger.debug('Marking script as executable to ensure it runs...')
+            subprocess.call(args=['chmod', '+x', app.entrypoint], cwd=app.fullPath)
+        #install requirements if needed
+        if (app.hasRequirements):
+            logger.debug('Installing requirements...')
+            subprocess.call(args=[venv_python_path(), '-m', 'pip', 'install', '-r', 'requirements.txt'], cwd=app.fullPath, start_new_session=True)
+        
+        logger.info(f'Finished preperation for app {app.directoryName}')
+    except Exception as e:
+        logger.error(f'Failed to prepare app {pathname}')
+        traceback.print_exc()
+        exit(1)
 
-# loaded, print debug data
+# Loaded, print debug data
 logger.info('Loaded successfully!')
-logger.debug('Started cron with following entries:')
-for job in cron:
-    logger.debug(job) 
+logger.info('The following apps have been loaded:')
+for app in loadedApps:
+    logger.info(f'* {app.directoryName} with schedule {app.schedule}')
 
-
+# Run the apps
 while 1:
-
-    time.sleep(1)
+    for app in loadedApps:
+        if (pycron.is_now(app.schedule)):
+            thread = threading.Thread(target=run, args=(app, ))
+            thread.start()
+    time.sleep(60)

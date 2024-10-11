@@ -15,6 +15,8 @@ ENV TZ="Etc/UTC"
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_NO_CACHE_DIR=1
 
+RUN apt-get update && apt-get install -y ffmpeg
+
 # Create a non-privileged user that the app will run under.
 ARG UID=10001
 RUN adduser \
@@ -30,7 +32,7 @@ USER appuser
 # Where to link the client apps into
 VOLUME /pythonapps
 
-# Copy the executable from the "build" stage.
+# Copy the executable
 WORKDIR /app
 COPY --chown=appuser . .
 RUN ["chmod", "+x", "/app/run.sh"]
